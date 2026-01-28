@@ -1,9 +1,12 @@
 // Appwrite Configuration
 export const appwriteConfig = {
-  endpoint: import.meta.env.VITE_APPWRITE_ENDPOINT || 'http://rafah-housing.com/v1',
+  endpoint: import.meta.env.VITE_APPWRITE_ENDPOINT || 'https://appwrite.rafah-housing.com/v1',
   projectId: import.meta.env.VITE_APPWRITE_PROJECT_ID || '67c3fca1001ace9f6ff6',
   databaseId: import.meta.env.VITE_APPWRITE_DATABASE_ID || '67b596520007b70f3783',
   bucketId: import.meta.env.VITE_APPWRITE_BUCKET_ID || '682c90bf000aaf2577e7',
+  functions: {
+    requestApproval: import.meta.env.VITE_APPWRITE_REQUEST_APPROVAL_FUNCTION_ID || '68e562330019f054378e',
+  },
   collections: {
     // Map to the required schema collections
     users: import.meta.env.VITE_APPWRITE_USERS_COLLECTION_ID || '68249b10003c16083520',
@@ -17,6 +20,7 @@ export const appwriteConfig = {
     activityRegistrations: import.meta.env.VITE_APPWRITE_ACTIVITY_REGISTRATIONS_COLLECTION_ID || '68272bc9003898ae7976',
     checkoutRequests: import.meta.env.VITE_APPWRITE_CHECKOUT_REQUESTS_COLLECTION_ID || '68272c59001081a0f67c',
     busTrips: import.meta.env.VITE_APPWRITE_BUS_TRIPS_COLLECTION_ID || '6862b55f0011edc952df',
+    compliance: import.meta.env.VITE_APPWRITE_COMPLIANCE_COLLECTION_ID || '68db514f000b4d4ee8de',
     
     // Food system collections
     foodMenu: import.meta.env.VITE_APPWRITE_FOOD_MENU_COLLECTION_ID || '68373009002a61f5cf07',

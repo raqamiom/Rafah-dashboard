@@ -20,15 +20,16 @@ import Activities from './pages/Activities';
 import ActivityRegistrations from './pages/ActivityRegistrations';
 import CheckoutRequests from './pages/CheckoutRequests';
 import BusTrips from './pages/BusTrips';
+import Compliance from './pages/Compliance';
 import FoodMenu from './pages/FoodMenu';
 import FoodOrders from './pages/FoodOrders';
-import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import Profile from './pages/Profile';
 import Error404 from './pages/Error404';
 import Unauthorized from './pages/Unauthorized'; // You'll need to create this page
 import ForgotPassword from './pages/ForgotPassword'; // Fixed typo: was 'ForgotPasswordl'
 import ResetPassword from './pages/ChangePassword'; // Fixed import: was 'ChangePassword'
+import RequestApproval from './pages/RequestApproval';
 
 // Role-based access control configuration
 const ROLES = {
@@ -47,13 +48,13 @@ const ROUTE_PERMISSIONS = {
   '/payments': [ROLES.ADMIN],
   '/services': [ROLES.ADMIN, ROLES.STAFF],
   '/orders': [ROLES.ADMIN, ROLES.STAFF],
+  '/compliance': [ROLES.ADMIN, ROLES.STAFF, 'service'],
   '/activities': [ROLES.ADMIN],
   '/activity-registrations': [ROLES.ADMIN],
   '/checkout-requests': [ROLES.ADMIN],
   '/bus-trips': [ROLES.ADMIN],
   '/food-menu': [ROLES.ADMIN, ROLES.RESTAURANT],
   '/food-orders': [ROLES.ADMIN, ROLES.RESTAURANT],
-  '/reports': [ROLES.ADMIN],
   '/settings': [ROLES.ADMIN],
   '/profile': [ROLES.ADMIN, ROLES.STAFF, ROLES.RESTAURANT],
   '/print/*': [ROLES.ADMIN, ROLES.STAFF, ROLES.RESTAURANT]
@@ -214,6 +215,9 @@ function App() {
         </GuestRoute>
       } />
       
+      {/* Request approval page (public, no authentication required) */}
+      <Route path="/request-approval" element={<RequestApproval />} />
+      
       {/* Unauthorized page */}
       <Route path="/unauthorized" element={
         <ProtectedRoute>
@@ -313,14 +317,6 @@ function App() {
         </RoleProtectedRoute>
       } />
       
-      <Route path="/reports" element={
-        <RoleProtectedRoute requiredRoles={ROUTE_PERMISSIONS['/reports']}>
-          <DashboardLayout>
-            <Reports />
-          </DashboardLayout>
-        </RoleProtectedRoute>
-      } />
-      
       <Route path="/settings" element={
         <RoleProtectedRoute requiredRoles={ROUTE_PERMISSIONS['/settings']}>
           <DashboardLayout>
@@ -342,6 +338,14 @@ function App() {
         <RoleProtectedRoute requiredRoles={ROUTE_PERMISSIONS['/orders']}>
           <DashboardLayout>
             <ServiceOrders />
+          </DashboardLayout>
+        </RoleProtectedRoute>
+      } />
+      
+      <Route path="/compliance" element={
+        <RoleProtectedRoute requiredRoles={ROUTE_PERMISSIONS['/compliance']}>
+          <DashboardLayout>
+            <Compliance />
           </DashboardLayout>
         </RoleProtectedRoute>
       } />

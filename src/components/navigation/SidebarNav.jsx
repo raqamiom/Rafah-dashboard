@@ -30,9 +30,9 @@ import EventIcon from '@mui/icons-material/Event';
 import HowToRegIcon from '@mui/icons-material/HowToReg';
 import AirplaneTicketIcon from '@mui/icons-material/AirplaneTicket';
 import DirectionsBusIcon from '@mui/icons-material/DirectionsBus';
+import PolicyIcon from '@mui/icons-material/Policy';
 import RestaurantMenuIcon from '@mui/icons-material/RestaurantMenu';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
-import BarChartIcon from '@mui/icons-material/BarChart';
 import SettingsIcon from '@mui/icons-material/Settings';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import ExpandLess from '@mui/icons-material/ExpandLess';
@@ -279,6 +279,12 @@ const navigationItems = [
     allowedRoles: ['admin', 'service','staff'],
   },
   {
+    key: 'compliance',
+    icon: <PolicyIcon />,
+    path: '/compliance',
+    allowedRoles: ['admin', 'staff', 'service'],
+  },
+  {
     key: 'activities',
     icon: <EventIcon />,
     path: '/activities',
@@ -313,19 +319,6 @@ const navigationItems = [
     icon: <RestaurantIcon />,
     path: '/food-orders',
     allowedRoles: ['admin', 'restaurant'],
-  },
-  {
-    key: 'reports',
-    icon: <BarChartIcon />,
-    path: '/reports',
-    allowedRoles: ['admin'],
-    subItems: [
-      { key: 'occupancy', path: '/reports/occupancy' },
-      { key: 'financial', path: '/reports/financial' },
-      { key: 'service', path: '/reports/service' },
-      { key: 'student', path: '/reports/student' },
-      { key: 'custom', path: '/reports/custom' },
-    ],
   },
   {
     key: 'settings',

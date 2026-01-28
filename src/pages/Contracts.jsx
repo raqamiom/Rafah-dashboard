@@ -52,7 +52,8 @@ import {
   Schedule as ScheduleIcon,
   Cancel as CancelIcon,
   TrendingUp as TrendingUpIcon,
-  Assignment as AssignmentIcon
+  Assignment as AssignmentIcon,
+  Download as DownloadIcon
 } from '@mui/icons-material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
@@ -63,9 +64,10 @@ import { useLanguage } from '../contexts/LanguageContext';
 import PageHeader from '../components/common/PageHeader';
 import { Query } from 'appwrite';
 import { alpha } from '@mui/material/styles';
+import { generateContractPDF } from '../utils/contractPdfGenerator';
 
 const Contracts = () => {
-  const { databases, databaseId, collections, ID } = useAppWrite();
+  const { databases, databaseId, collections, ID, storage, bucketId } = useAppWrite();
   const { showSuccess, showError } = useNotification();
   const { t, isRTL } = useLanguage();
   const theme = useTheme();
@@ -111,6 +113,9 @@ const Contracts = () => {
     isDiscounted: false,
     discountedAmount: 0,
     discountPeriod: '',
+    documentUrl: '',
+    documentFileId: '',
+    documentFileName: '',
   });
   
   // State to store student details for display
@@ -119,6 +124,16 @@ const Contracts = () => {
   const [loadingStudentDetails, setLoadingStudentDetails] = useState(false);
   const [selectedRoomDetails, setSelectedRoomDetails] = useState([]); // For form dialog
   const [loadingRoomDetails, setLoadingRoomDetails] = useState(false);
+  
+  // State for PDF generation
+  const [printRoomDetails, setPrintRoomDetails] = useState([]); // For print dialog
+  const [loadingPrintRooms, setLoadingPrintRooms] = useState(false);
+  const [generatingPDF, setGeneratingPDF] = useState(false);
+  
+  // State for document upload
+  const [documentFile, setDocumentFile] = useState(null);
+  const [documentPreview, setDocumentPreview] = useState(null);
+  const [uploadingDocument, setUploadingDocument] = useState(false);
   
   // Get student details by userId
   const getStudentDetails = async (userId) => {
@@ -385,9 +400,14 @@ const Contracts = () => {
       discountedAmount: 0,
       discountPeriod: '',
       IDnumber: '',
+      documentUrl: '',
+      documentFileId: '',
+      documentFileName: '',
     });
     setSelectedStudentDetails(null); // Clear selected student details
     setSelectedRoomDetails([]); // Clear selected room details
+    setDocumentFile(null);
+    setDocumentPreview(null);
     setDialogMode('create');
     setOpenDialog(true);
     
@@ -410,8 +430,12 @@ const Contracts = () => {
       isDiscounted: contract.isDiscounted || false,
       discountedAmount: contract.discountedAmount || 0,
       discountPeriod: contract.discountPeriod || '',
-      
+      documentUrl: contract.documentUrl || '',
+      documentFileId: contract.documentFileId || '',
+      documentFileName: contract.documentFileName || '',
     });
+    setDocumentFile(null);
+    setDocumentPreview(contract.documentUrl || null);
     setDialogMode('edit');
     setOpenDialog(true);
     
@@ -445,6 +469,36 @@ const Contracts = () => {
     
     // Fetch student details for the contract
     await fetchStudentDetailsForContract(contract);
+    
+    // Fetch room details for the contract
+    if (contract.roomIds && contract.roomIds.length > 0) {
+      try {
+        setLoadingPrintRooms(true);
+        const roomDetailsPromises = contract.roomIds.map(async (roomId) => {
+          try {
+            const roomDetails = await databases.getDocument(
+              databaseId,
+              collections.rooms,
+              roomId
+            );
+            return roomDetails;
+          } catch (error) {
+            console.error('Error fetching room details:', error);
+            return null;
+          }
+        });
+
+        const roomDetails = await Promise.all(roomDetailsPromises);
+        setPrintRoomDetails(roomDetails.filter(room => room !== null));
+      } catch (error) {
+        console.error('Error fetching print room details:', error);
+        setPrintRoomDetails([]);
+      } finally {
+        setLoadingPrintRooms(false);
+      }
+    } else {
+      setPrintRoomDetails([]);
+    }
   };
   
   // Handle dialog open for renew
@@ -463,7 +517,12 @@ const Contracts = () => {
       isDiscounted: contract.isDiscounted || false,
       discountedAmount: contract.discountedAmount || 0,
       discountPeriod: contract.discountPeriod || '',
+      documentUrl: '',
+      documentFileId: '',
+      documentFileName: '',
     });
+    setDocumentFile(null);
+    setDocumentPreview(null);
     
     setDialogMode('renew');
     setOpenDialog(true);
@@ -490,6 +549,176 @@ const Contracts = () => {
     setContractStudentDetails(null); // Clear student details
     setSelectedStudentDetails(null); // Clear selected student details
     setSelectedRoomDetails([]); // Clear selected room details
+    setPrintRoomDetails([]); // Clear print room details
+    setDocumentFile(null);
+    if (documentPreview && documentPreview.startsWith('blob:')) {
+      URL.revokeObjectURL(documentPreview);
+    }
+    setDocumentPreview(null);
+  };
+  
+  // Handle document file selection
+  const handleDocumentFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // Validate file type
+    const allowedTypes = ['.pdf', '.doc', '.docx', '.txt'];
+    const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+    if (!allowedTypes.includes(fileExtension)) {
+      showError(t('contracts.documentFileType'));
+      return;
+    }
+    
+    // Validate file size (10MB max)
+    const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+    if (file.size > maxSize) {
+      showError(t('contracts.documentFileSize'));
+      return;
+    }
+    
+    setDocumentFile(file);
+    // Create preview URL for display
+    const previewUrl = URL.createObjectURL(file);
+    setDocumentPreview(previewUrl);
+  };
+  
+  // Handle document removal
+  const handleRemoveDocument = () => {
+    setDocumentFile(null);
+    if (documentPreview && documentPreview.startsWith('blob:')) {
+      URL.revokeObjectURL(documentPreview);
+    }
+    setDocumentPreview(null);
+    setFormData({
+      ...formData,
+      documentUrl: '',
+      documentFileId: '',
+      documentFileName: '',
+    });
+  };
+  
+  // Upload contract document to Appwrite storage
+  const uploadContractDocument = async (file) => {
+    if (!file) {
+      return null;
+    }
+    
+    // Use specific bucket for contract documents
+    const contractsBucketId = '6972023e000528158c0e';
+    
+    try {
+      setUploadingDocument(true);
+      
+      // Generate unique file ID
+      const fileId = ID.unique();
+      
+      // Upload file to Appwrite storage
+      const uploadedFile = await storage.createFile(
+        contractsBucketId,
+        fileId,
+        file,
+        ['read("any")'] // Public read permission
+      );
+      
+      // Get file URL
+      const { appwriteConfig } = await import('../config/appwrite');
+      const fileUrl = `${appwriteConfig.endpoint}/storage/buckets/${contractsBucketId}/files/${uploadedFile.$id}/view?project=${appwriteConfig.projectId}`;
+      
+      setUploadingDocument(false);
+      return {
+        fileId: uploadedFile.$id,
+        fileUrl: fileUrl,
+        fileName: file.name
+      };
+    } catch (error) {
+      console.error('Error uploading document:', error);
+      setUploadingDocument(false);
+      showError(t('contracts.documentUploadError'));
+      return null;
+    }
+  };
+  
+  // Handle document download
+  const handleDownloadDocument = async (contract) => {
+    if (!contract.documentUrl && !contract.documentFileId) {
+      showError(t('contracts.documentNotFound'));
+      return;
+    }
+    
+    try {
+      let downloadUrl = contract.documentUrl;
+      
+      // If we have fileId but no URL, construct the URL using contracts bucket
+      if (!downloadUrl && contract.documentFileId) {
+        const contractsBucketId = '6972023e000528158c0e';
+        const { appwriteConfig } = await import('../config/appwrite');
+        downloadUrl = `${appwriteConfig.endpoint}/storage/buckets/${contractsBucketId}/files/${contract.documentFileId}/view?project=${appwriteConfig.projectId}`;
+      }
+      
+      if (downloadUrl) {
+        // Create a temporary link and trigger download
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = contract.documentFileName || `contract_${contract.contractId}.pdf`;
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        showSuccess(t('contracts.documentDownloaded'));
+      } else {
+        showError(t('contracts.documentDownloadError'));
+      }
+    } catch (error) {
+      console.error('Error downloading document:', error);
+      showError(t('contracts.documentDownloadError'));
+    }
+  };
+  
+  // Handle PDF generation
+  const handleGeneratePDF = async () => {
+    if (!selectedContract) {
+      showError(t('contracts.contractNotFound'));
+      return;
+    }
+
+    try {
+      setGeneratingPDF(true);
+      
+      // Ensure we have student and room details
+      let studentData = contractStudentDetails;
+      if (!studentData && selectedContract.userId) {
+        studentData = await getStudentDetails(selectedContract.userId);
+      }
+      
+      let roomData = printRoomDetails;
+      if (!roomData || roomData.length === 0) {
+        if (selectedContract.roomIds && selectedContract.roomIds.length > 0) {
+          const roomDetailsPromises = selectedContract.roomIds.map(async (roomId) => {
+            try {
+              return await databases.getDocument(
+                databaseId,
+                collections.rooms,
+                roomId
+              );
+            } catch (error) {
+              console.error('Error fetching room details:', error);
+              return null;
+            }
+          });
+          roomData = (await Promise.all(roomDetailsPromises)).filter(room => room !== null);
+        }
+      }
+      
+      // Generate PDF
+      await generateContractPDF(selectedContract, studentData, roomData);
+      showSuccess(t('contracts.pdfGenerated'));
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      showError(t('contracts.pdfGenerationError'));
+    } finally {
+      setGeneratingPDF(false);
+    }
   };
   
   // Handle form input change
@@ -603,6 +832,55 @@ const Contracts = () => {
         return;
       }
       
+      // Upload document if a new file is selected
+      let documentData = {
+        documentUrl: formData.documentUrl || '',
+        documentFileId: formData.documentFileId || '',
+        documentFileName: formData.documentFileName || '',
+      };
+      
+      // If editing and a new file is selected, delete the old file first
+      if (dialogMode === 'edit' && documentFile && selectedContract?.documentFileId) {
+        try {
+          const contractsBucketId = '6972023e000528158c0e';
+          await storage.deleteFile(contractsBucketId, selectedContract.documentFileId);
+          console.log('Old document deleted successfully');
+        } catch (error) {
+          console.warn('Error deleting old document (continuing with upload):', error);
+          // Continue with upload even if deletion fails
+        }
+      }
+      
+      if (documentFile) {
+        const uploadResult = await uploadContractDocument(documentFile);
+        if (uploadResult) {
+          documentData = {
+            documentUrl: uploadResult.fileUrl,
+            documentFileId: uploadResult.fileId,
+            documentFileName: uploadResult.fileName,
+          };
+          showSuccess(t('contracts.documentUploaded'));
+        }
+      }
+      
+      // If document was removed (no file selected and existing document cleared)
+      if (dialogMode === 'edit' && !documentFile && !formData.documentUrl && selectedContract?.documentFileId) {
+        try {
+          const contractsBucketId = '6972023e000528158c0e';
+          await storage.deleteFile(contractsBucketId, selectedContract.documentFileId);
+          console.log('Document removed and deleted from storage');
+        } catch (error) {
+          console.warn('Error deleting document:', error);
+          // Continue with update even if deletion fails
+        }
+        // Clear document data
+        documentData = {
+          documentUrl: '',
+          documentFileId: '',
+          documentFileName: '',
+        };
+      }
+      
       const contractData = {
         contractId: dialogMode === 'create' ? await generateContractId() : selectedContract.contractId,
         userId: formData.userId,
@@ -616,7 +894,11 @@ const Contracts = () => {
         discountedAmount: parseFloat(formData.discountedAmount) || 0,
         discountPeriod: formData.discountPeriod,
         updatedAt: new Date().toISOString(),
-        IDnumber: parseInt(student.idNumber, 10) || 0      };
+        IDnumber: parseInt(student.idNumber, 10) || 0,
+        documentUrl: documentData.documentUrl,
+        documentFileId: documentData.documentFileId,
+        documentFileName: documentData.documentFileName,
+      };
       
       if (dialogMode === 'create' || dialogMode === 'renew') {
         // Add createdAt for new contracts
@@ -869,6 +1151,21 @@ const Contracts = () => {
               <PrintIcon fontSize="small" />
             </IconButton>
           </Tooltip>
+          
+          {(params.row.documentUrl || params.row.documentFileId) && (
+            <Tooltip title={t('contracts.downloadDocument')}>
+              <IconButton
+                size="small"
+                onClick={() => handleDownloadDocument(params.row)}
+                sx={{ 
+                  bgcolor: 'success.lighter',
+                  '&:hover': { bgcolor: 'success.light' }
+                }}
+              >
+                <DownloadIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
           
           {params.row.status === 'active' && (
             <Tooltip title={t('contracts.terminateContract')}>
@@ -1701,6 +1998,39 @@ const Contracts = () => {
                 >
                   {t('common.close')}
                 </Button>
+                <Button 
+                  onClick={handleGeneratePDF}
+                  color="success" 
+                  variant="contained"
+                  startIcon={generatingPDF ? <CircularProgress size={16} color="inherit" /> : <DownloadIcon />}
+                  disabled={generatingPDF || loadingPrintRooms}
+                  sx={{ 
+                    borderRadius: 2,
+                    px: 3,
+                    textTransform: 'none',
+                    fontWeight: 'medium',
+                    boxShadow: 2
+                  }}
+                >
+                  {generatingPDF ? t('contracts.generatingPDF') : t('contracts.downloadPDF')}
+                </Button>
+                {(selectedContract?.documentUrl || selectedContract?.documentFileId) && (
+                  <Button 
+                    onClick={() => handleDownloadDocument(selectedContract)}
+                    color="info" 
+                    variant="contained"
+                    startIcon={<DownloadIcon />}
+                    sx={{ 
+                      borderRadius: 2,
+                      px: 3,
+                      textTransform: 'none',
+                      fontWeight: 'medium',
+                      boxShadow: 2
+                    }}
+                  >
+                    {t('contracts.downloadDocument')}
+                  </Button>
+                )}
                 <Button 
                   onClick={() => {
                     window.print();
@@ -2731,6 +3061,167 @@ const Contracts = () => {
                         </Zoom>
                       </Grid>
                     )}
+                    
+                    {/* Contract Document Upload Section */}
+                    <Grid item xs={12}>
+                      <Card 
+                        elevation={2} 
+                        sx={{ 
+                          p: 3, 
+                          borderRadius: 2,
+                          bgcolor: theme.palette.background.paper,
+                          border: `1px solid ${theme.palette.divider}`,
+                          transition: 'all 0.2s ease',
+                          '&:hover': {
+                            boxShadow: 3,
+                            transform: 'translateY(-2px)'
+                          }
+                        }}
+                      >
+                        <Typography 
+                          variant="h6" 
+                          gutterBottom 
+                          color="primary" 
+                          sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 1,
+                            mb: 2,
+                            color: theme.palette.primary.main
+                          }}
+                        >
+                          <AssignmentIcon />
+                          {t('contracts.uploadDocument')}
+                        </Typography>
+                        
+                        {uploadingDocument && (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                            <CircularProgress size={24} />
+                            <Typography variant="body2" color="text.secondary">
+                              {t('contracts.uploadingDocument')}
+                            </Typography>
+                          </Box>
+                        )}
+                        
+                        {/* Existing Document Display */}
+                        {!documentFile && formData.documentUrl && (
+                          <Box sx={{ mb: 2 }}>
+                            <Alert 
+                              severity="info"
+                              sx={{
+                                mb: 2,
+                                bgcolor: theme.palette.mode === 'dark' 
+                                  ? alpha(theme.palette.info.dark, 0.2)
+                                  : alpha(theme.palette.info.light, 0.2),
+                                border: `1px solid ${theme.palette.info.main}`,
+                                '& .MuiAlert-icon': {
+                                  color: theme.palette.info.main
+                                }
+                              }}
+                            >
+                              <Typography variant="body2" fontWeight="medium" gutterBottom>
+                                {t('contracts.existingDocument')}
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                                {formData.documentFileName || t('contracts.documentFile')}
+                              </Typography>
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                startIcon={<DownloadIcon />}
+                                onClick={() => handleDownloadDocument({
+                                  documentUrl: formData.documentUrl,
+                                  documentFileId: formData.documentFileId,
+                                  documentFileName: formData.documentFileName,
+                                  contractId: selectedContract?.contractId || ''
+                                })}
+                                sx={{ mt: 1 }}
+                              >
+                                {t('contracts.downloadDocument')}
+                              </Button>
+                            </Alert>
+                          </Box>
+                        )}
+                        
+                        {/* File Input */}
+                        <Box sx={{ mb: 2 }}>
+                          <input
+                            accept=".pdf,.doc,.docx,.txt"
+                            style={{ display: 'none' }}
+                            id="contract-document-upload"
+                            type="file"
+                            onChange={handleDocumentFileChange}
+                            disabled={uploadingDocument}
+                          />
+                          <label htmlFor="contract-document-upload">
+                            <Button
+                              variant="outlined"
+                              component="span"
+                              startIcon={<AssignmentIcon />}
+                              disabled={uploadingDocument}
+                              sx={{
+                                borderRadius: 2,
+                                textTransform: 'none',
+                                fontWeight: 'medium',
+                                borderColor: theme.palette.divider,
+                                color: theme.palette.text.primary,
+                                '&:hover': {
+                                  borderColor: theme.palette.primary.main,
+                                  bgcolor: theme.palette.mode === 'dark' 
+                                    ? 'rgba(255,255,255,0.05)' 
+                                    : 'rgba(0,0,0,0.05)'
+                                }
+                              }}
+                            >
+                              {t('contracts.selectDocument')}
+                            </Button>
+                          </label>
+                        </Box>
+                        
+                        {/* Selected File Display */}
+                        {documentFile && (
+                          <Box sx={{ 
+                            p: 2, 
+                            bgcolor: theme.palette.mode === 'dark' 
+                              ? 'rgba(255,255,255,0.03)' 
+                              : theme.palette.grey[50],
+                            borderRadius: 2,
+                            border: `1px solid ${theme.palette.divider}`,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between'
+                          }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <AssignmentIcon color="primary" />
+                              <Typography variant="body2" fontWeight="medium">
+                                {documentFile.name}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                ({(documentFile.size / 1024 / 1024).toFixed(2)} MB)
+                              </Typography>
+                            </Box>
+                            <IconButton
+                              size="small"
+                              onClick={handleRemoveDocument}
+                              sx={{ 
+                                color: theme.palette.error.main,
+                                '&:hover': {
+                                  bgcolor: theme.palette.mode === 'dark' 
+                                    ? 'rgba(255,0,0,0.1)' 
+                                    : 'rgba(255,0,0,0.05)'
+                                }
+                              }}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Box>
+                        )}
+                        
+                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                          {t('contracts.documentUploadHint')}
+                        </Typography>
+                      </Card>
+                    </Grid>
                   </Grid>
                 </LocalizationProvider>
               </DialogContent>

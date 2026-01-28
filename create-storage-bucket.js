@@ -6,7 +6,7 @@ const { appwriteConfig } = require('./src/config/appwrite');
 const client = new Client();
 
 client
-  .setEndpoint('http://rafah-housing.com/v1') // Replace with your Appwrite endpoint
+  .setEndpoint('https://appwrite.rafah-housing.com/v1') // Replace with your Appwrite endpoint
   .setProject('67c3fca1001ace9f6ff6')          // Replace with your project ID
   .setKey(process.env.APPWRITE_API_KEY);       // Set your API key as environment variable
 

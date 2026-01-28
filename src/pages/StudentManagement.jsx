@@ -85,6 +85,7 @@ const StudentManagement = () => {
     emergencyContactName: "",
     emergencyContactPhone: "",
     idNumber: "",
+    parentEmail: "",
     password: "Rafah@12345",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -182,6 +183,11 @@ const StudentManagement = () => {
       errors.emergencyContactPhone = t("validation.required");
     }
 
+    // Validate parentEmail format if provided (optional field)
+    if (formData.parentEmail.trim() && !/\S+@\S+\.\S+/.test(formData.parentEmail)) {
+      errors.parentEmail = t("validation.invalidEmail");
+    }
+
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -214,6 +220,7 @@ const StudentManagement = () => {
               idNumber: formData.idNumber,
               emergencyContactPhone: formData.emergencyContactPhone,
               emergencyContactName: formData.emergencyContactName,
+              parentEmail: formData.parentEmail,
               databaseId: databaseId, // Your database ID
               collectionId: collections.users, // Your users collection ID
             }),
@@ -238,7 +245,7 @@ const StudentManagement = () => {
         };
 
         const res = await fetch(
-          "https://appwrite.rafah-housing.com//v1/functions/6864eac70004e2c4c75d/executions",
+          "https://appwrite.rafah-housing.com/v1/functions/6864eac70004e2c4c75d/executions",
           {
             method: "POST",
             headers: {
@@ -355,6 +362,7 @@ const StudentManagement = () => {
       emergencyContactName: "",
       emergencyContactPhone: "",
       idNumber: "",
+      parentEmail: "",
     });
     setFormErrors({});
     setDialogOpen(true);
@@ -372,6 +380,7 @@ const StudentManagement = () => {
       emergencyContactName: student.emergencyContactName || "",
       emergencyContactPhone: student.emergencyContactPhone || "",
       idNumber: student.idNumber || "",
+      parentEmail: student.parentEmail || "",
     });
     setFormErrors({});
     setDialogOpen(true);
@@ -390,6 +399,7 @@ const StudentManagement = () => {
       emergencyContactName: "",
       emergencyContactPhone: "",
       idNumber: "",
+      parentEmail: "",
     });
     setFormErrors({});
   };
@@ -1115,6 +1125,37 @@ const StudentManagement = () => {
                       error={!!formErrors.email}
                       helperText={formErrors.email}
                       required
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          borderRadius: 2,
+                          transition: "all 0.3s ease",
+                          "&:hover": {
+                            boxShadow: `0 4px 12px ${alpha(
+                              theme.palette.primary.main,
+                              0.15
+                            )}`,
+                          },
+                          "&.Mui-focused": {
+                            boxShadow: `0 4px 20px ${alpha(
+                              theme.palette.primary.main,
+                              0.25
+                            )}`,
+                          },
+                        },
+                      }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      label={t("students.parentEmail")}
+                      type="email"
+                      value={formData.parentEmail}
+                      onChange={(e) =>
+                        handleInputChange("parentEmail", e.target.value)
+                      }
+                      error={!!formErrors.parentEmail}
+                      helperText={formErrors.parentEmail}
                       sx={{
                         "& .MuiOutlinedInput-root": {
                           borderRadius: 2,

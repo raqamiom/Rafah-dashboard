@@ -382,7 +382,7 @@ const SystemUsers = () => {
           };
 
           const res = await fetch(
-            "https://appwrite.rafah-housing.com//v1/functions/6864eac70004e2c4c75d/executions",
+            "https://appwrite.rafah-housing.com/v1/functions/6864eac70004e2c4c75d/executions",
             {
               method: "POST",
               headers: {
