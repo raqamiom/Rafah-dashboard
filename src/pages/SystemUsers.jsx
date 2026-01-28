@@ -456,7 +456,7 @@ const SystemUsers = () => {
           showSuccess(t("systemUsers.userCreated"));
           await account.createRecovery(
             formData.email,
-            "https://rafah-housing.com/resetlink.php"
+            "https://manager.rafah-housing.com/reset-password"
           );
           handleCloseDialog();
           fetchSystemUsers();

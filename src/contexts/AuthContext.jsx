@@ -300,7 +300,7 @@ export const AuthProvider = ({ children }) => {
 
       // Send a password reset email
       // Use the Appwrite server's IP for the reset URL to match allowed hosts
-      await account.createRecovery(email, `https://rafah-housing.com/resetlink.php`);
+      await account.createRecovery(email, `https://manager.rafah-housing.com/reset-password`);
 
       return { success: true };
     } catch (error) {

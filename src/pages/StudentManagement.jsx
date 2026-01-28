@@ -304,7 +304,7 @@ const StudentManagement = () => {
         );
         await account.createRecovery(
           formData.email,
-          "https://rafah-housing.com/resetlink.php"
+          "https://manager.rafah-housing.com/reset-password"
         );
 
         showNotification(t("students.createSuccess"), "success");
