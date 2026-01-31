@@ -340,8 +340,8 @@ requirement: {
       noInformationAvailable: 'لا توجد معلومات متاحة',
       types: {
         single: 'مفردة',
-        double: 'مزدوجة',
-        suite: 'جناح',
+        double: 'ثنائية',
+        suite: 'ثلاثية',
       },
       status: {
         not_occupied: 'غير مشغولة',
