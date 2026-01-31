@@ -169,6 +169,16 @@ const StudentManagement = () => {
 
     if (!formData.phone.trim()) {
       errors.phone = t("validation.required");
+    } else {
+      // Validate phone format: must start with '+' and have max 15 digits total
+      const phone = formData.phone.trim();
+      if (!phone.startsWith("+")) {
+        errors.phone = "Phone number must start with '+'";
+      } else if (phone.length > 15) {
+        errors.phone = "Phone number can have a maximum of fifteen digits (including '+')";
+      } else if (!/^\+[0-9]{1,14}$/.test(phone)) {
+        errors.phone = "Phone number must start with '+' followed by digits only";
+      }
     }
 
     if (!formData.idNumber.trim()) {
@@ -181,6 +191,16 @@ const StudentManagement = () => {
 
     if (!formData.emergencyContactPhone.trim()) {
       errors.emergencyContactPhone = t("validation.required");
+    } else {
+      // Validate emergency contact phone format: must start with '+' and have max 15 digits total
+      const emergencyPhone = formData.emergencyContactPhone.trim();
+      if (!emergencyPhone.startsWith("+")) {
+        errors.emergencyContactPhone = "Phone number must start with '+'";
+      } else if (emergencyPhone.length > 15) {
+        errors.emergencyContactPhone = "Phone number can have a maximum of fifteen digits (including '+')";
+      } else if (!/^\+[0-9]{1,14}$/.test(emergencyPhone)) {
+        errors.emergencyContactPhone = "Phone number must start with '+' followed by digits only";
+      }
     }
 
     // Validate parentEmail format if provided (optional field)
