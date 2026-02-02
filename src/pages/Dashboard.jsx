@@ -349,21 +349,45 @@ const Dashboard = () => {
           startDate.setMonth(now.getMonth() - 1);
       }
 
-      // Batch queries for better performance
+      // Helper function to fetch all documents with pagination
+      const fetchAllDocuments = async (collectionId, filters = [], limit = 100) => {
+        const allDocuments = [];
+        let offset = 0;
+        let hasMore = true;
+
+        while (hasMore) {
+          const response = await databases.listDocuments(
+            databaseId,
+            collectionId,
+            filters,
+            limit,
+            offset
+          );
+          allDocuments.push(...response.documents);
+          if (response.documents.length < limit) {
+            hasMore = false;
+          } else {
+            offset += limit;
+          }
+        }
+        return { documents: allDocuments, total: allDocuments.length };
+      };
+
+      // Batch queries for better performance - fetch all records for accurate statistics
       const basicQueriesPromise = Promise.all([
-        databases.listDocuments(databaseId, collections.users, [Query.equal('role', 'student')]),
-        databases.listDocuments(databaseId, collections.rooms),
-        databases.listDocuments(databaseId, collections.contracts, [Query.equal('status', 'active')]),
-        databases.listDocuments(databaseId, collections.payments, [Query.equal('status', 'pending')]),
-        databases.listDocuments(databaseId, collections.checkoutRequests, [Query.equal('status', 'pending')]),
+        fetchAllDocuments(collections.users, [Query.equal('role', 'student')]),
+        fetchAllDocuments(collections.rooms),
+        fetchAllDocuments(collections.contracts, [Query.equal('status', 'active')]),
+        fetchAllDocuments(collections.payments, [Query.equal('status', 'pending')]),
+        fetchAllDocuments(collections.checkoutRequests, [Query.equal('status', 'pending')]),
       ]);
 
       const timeBasedQueriesPromise = Promise.all([
-        databases.listDocuments(databaseId, collections.payments, [
+        fetchAllDocuments(collections.payments, [
           Query.greaterThan('createdAt', startDate.toISOString()),
           Query.equal('status', 'paid')
         ]),
-        databases.listDocuments(databaseId, collections.foodOrders, [
+        fetchAllDocuments(collections.foodOrders, [
           Query.greaterThan('createdAt', startDate.toISOString())
         ]),
       ]);

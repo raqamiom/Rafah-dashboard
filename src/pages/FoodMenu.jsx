@@ -163,20 +163,39 @@ const FoodMenu = () => {
     }
   };
 
-  // Fetch categories
+  // Fetch categories - fetches all using pagination
   const fetchCategories = async () => {
     try {
       setLoadingCategories(true);
-      const response = await databases.listDocuments(
-        databaseId,
-        COLLECTIONS.categories,
-        [],
-        100, // Get all categories
-        0,
-        '$createdAt',
-        'ASC'
-      );
-      setCategories(response.documents);
+      
+      // Fetch all categories by paginating through results
+      const allCategories = [];
+      let offset = 0;
+      const limit = 100; // Maximum allowed per request
+      let hasMore = true;
+
+      while (hasMore) {
+        const response = await databases.listDocuments(
+          databaseId,
+          COLLECTIONS.categories,
+          [],
+          limit,
+          offset,
+          '$createdAt',
+          'ASC'
+        );
+
+        allCategories.push(...response.documents);
+
+        // Check if there are more documents to fetch
+        if (response.documents.length < limit) {
+          hasMore = false;
+        } else {
+          offset += limit;
+        }
+      }
+      
+      setCategories(allCategories);
     } catch (error) {
       console.error('Error fetching categories:', error);
       showError(t('categories.fetchError', 'Failed to fetch categories'));

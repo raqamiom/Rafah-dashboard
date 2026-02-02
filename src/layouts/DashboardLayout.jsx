@@ -72,58 +72,61 @@ const AppBar = styled(MuiAppBar, {
 
 // Enhanced Styled components for the Drawer with beautiful shadows and colors
 const Drawer = styled(MuiDrawer, {
-  shouldForwardProp: (prop) => prop !== 'open' && prop !== 'isRTL',
-})(({ theme, open, isRTL }) => ({
-  '& .MuiDrawer-paper': {
-    position: 'relative',
-    whiteSpace: 'nowrap',
-    width: drawerWidth,
-    transition: theme.transitions.create(['width', 'transform', 'box-shadow'], {
-      easing: theme.transitions.easing.easeInOut,
-      duration: theme.transitions.duration.standard,
-    }),
-    boxSizing: 'border-box',
-    // Enhanced background with subtle gradient
-    background: theme.palette.mode === 'dark'
-      ? `linear-gradient(180deg, ${theme.palette.background.paper} 0%, ${alpha(theme.palette.background.paper, 0.98)} 100%)`
-      : `linear-gradient(180deg, ${theme.palette.background.paper} 0%, ${alpha(theme.palette.background.default, 0.8)} 100%)`,
-    // Beautiful backdrop blur
-    backdropFilter: 'blur(20px)',
-    ...(isRTL && {
-      right: 0,
-      left: 'auto',
-      borderLeft: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
-      borderRight: 'none',
-    }),
-    ...(!isRTL && {
-      left: 0,
-      right: 'auto',
-      borderRight: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
-      borderLeft: 'none',
-    }),
-    ...(!open && {
-      overflowX: 'hidden',
+  shouldForwardProp: (prop) => prop !== 'open' && prop !== 'isRTL' && prop !== 'isMobile',
+})(({ theme, open, isRTL, isMobile }) => ({
+  // For permanent drawer (desktop), apply custom styles
+  ...(!isMobile && {
+    '& .MuiDrawer-paper': {
+      position: 'relative',
+      whiteSpace: 'nowrap',
+      width: drawerWidth,
       transition: theme.transitions.create(['width', 'transform', 'box-shadow'], {
         easing: theme.transitions.easing.easeInOut,
-        duration: theme.transitions.duration.leavingScreen,
+        duration: theme.transitions.duration.standard,
       }),
-      width: drawerCollapsedWidth,
-      '& .MuiTypography-root': {
-        opacity: 0,
-        transform: 'translateX(-10px)',
-      },
-    }),
-    // Enhanced shadow system
-    boxShadow: theme.palette.mode === 'dark' 
-      ? '8px 0 32px rgba(0, 0, 0, 0.4), 4px 0 16px rgba(0, 0, 0, 0.2)'
-      : '4px 0 24px rgba(0, 0, 0, 0.08), 2px 0 8px rgba(0, 0, 0, 0.04)',
-    // Hover effect for better interactivity
-    '&:hover': {
+      boxSizing: 'border-box',
+      // Enhanced background with subtle gradient
+      background: theme.palette.mode === 'dark'
+        ? `linear-gradient(180deg, ${theme.palette.background.paper} 0%, ${alpha(theme.palette.background.paper, 0.98)} 100%)`
+        : `linear-gradient(180deg, ${theme.palette.background.paper} 0%, ${alpha(theme.palette.background.default, 0.8)} 100%)`,
+      // Beautiful backdrop blur
+      backdropFilter: 'blur(20px)',
+      ...(isRTL && {
+        right: 0,
+        left: 'auto',
+        borderLeft: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+        borderRight: 'none',
+      }),
+      ...(!isRTL && {
+        left: 0,
+        right: 'auto',
+        borderRight: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+        borderLeft: 'none',
+      }),
+      ...(!open && {
+        overflowX: 'hidden',
+        transition: theme.transitions.create(['width', 'transform', 'box-shadow'], {
+          easing: theme.transitions.easing.easeInOut,
+          duration: theme.transitions.duration.leavingScreen,
+        }),
+        width: drawerCollapsedWidth,
+        '& .MuiTypography-root': {
+          opacity: 0,
+          transform: 'translateX(-10px)',
+        },
+      }),
+      // Enhanced shadow system
       boxShadow: theme.palette.mode === 'dark' 
-        ? '12px 0 40px rgba(0, 0, 0, 0.5), 6px 0 20px rgba(0, 0, 0, 0.3)'
-        : '6px 0 32px rgba(0, 0, 0, 0.12), 3px 0 12px rgba(0, 0, 0, 0.06)',
+        ? '8px 0 32px rgba(0, 0, 0, 0.4), 4px 0 16px rgba(0, 0, 0, 0.2)'
+        : '4px 0 24px rgba(0, 0, 0, 0.08), 2px 0 8px rgba(0, 0, 0, 0.04)',
+      // Hover effect for better interactivity
+      '&:hover': {
+        boxShadow: theme.palette.mode === 'dark' 
+          ? '12px 0 40px rgba(0, 0, 0, 0.5), 6px 0 20px rgba(0, 0, 0, 0.3)'
+          : '6px 0 32px rgba(0, 0, 0, 0.12), 3px 0 12px rgba(0, 0, 0, 0.06)',
+      },
     },
-  },
+  }),
 }));
 
 // Enhanced Mobile Overlay with better animations
@@ -184,7 +187,8 @@ const DashboardLayout = ({ children }) => {
   const { isDarkMode } = useTheme();
   const { t, isRTL } = useLanguage();
   const muiTheme = useMuiTheme();
-  const isMobile = useMediaQuery(muiTheme.breakpoints.down('lg'));
+  // Use 'md' breakpoint (900px) for better mobile/tablet detection
+  const isMobile = useMediaQuery(muiTheme.breakpoints.down('md'));
   
   // Drawer state - automatically close on mobile
   const [open, setOpen] = useState(!isMobile);
@@ -202,6 +206,123 @@ const DashboardLayout = ({ children }) => {
   const toggleDrawer = () => {
     setOpen(!open);
   };
+  
+  // Render drawer content (shared between mobile and desktop)
+  const renderDrawerContent = () => (
+    <>
+      <Toolbar
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          px: 2,
+          minHeight: '64px !important',
+          borderBottom: `1px solid ${alpha(muiTheme.palette.divider, 0.12)}`,
+          direction: isRTL ? 'rtl' : 'ltr',
+          justifyContent: 'space-between',
+          // Enhanced background
+          background: muiTheme.palette.mode === 'dark'
+            ? `linear-gradient(135deg, ${alpha(muiTheme.palette.primary.dark, 0.1)}, ${alpha(muiTheme.palette.background.paper, 0.95)})`
+            : `linear-gradient(135deg, ${alpha(muiTheme.palette.primary.light, 0.05)}, ${muiTheme.palette.background.paper})`,
+        }}
+      >
+        {/* Logo/Brand section */}
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center',
+          flex: 1,
+          direction: 'inherit',
+        }}>
+          <Fade in={true} timeout={1000}>
+            <Box
+              component="img"
+              src="/assets/logo/logo.svg"
+              alt="Sukna Logo"
+              sx={{
+                height: 40,
+                width: 'auto',
+                marginRight: isRTL ? 0 : 2,
+                marginLeft: isRTL ? 2 : 0,
+                transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                filter: muiTheme.palette.mode === 'dark' 
+                  ? 'drop-shadow(0 2px 8px rgba(0,0,0,0.3))' 
+                  : 'drop-shadow(0 1px 4px rgba(0,0,0,0.1))',
+                ...(open && {
+                  transform: 'scale(1.05)',
+                }),
+                '&:hover': {
+                  transform: 'scale(1.1) rotate(5deg)',
+                },
+              }}
+            />
+          </Fade>
+          <Slide direction={isRTL ? "left" : "right"} in={open || isMobile} timeout={600}>
+            <Typography 
+              variant="h6" 
+              sx={{ 
+                fontWeight: 'bold', 
+                display: (open || isMobile) ? 'block' : 'none',
+                whiteSpace: 'nowrap',
+                opacity: (open || isMobile) ? 1 : 0,
+                transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                background: `linear-gradient(135deg, ${muiTheme.palette.primary.main}, ${muiTheme.palette.secondary.main}, ${muiTheme.palette.primary.light})`,
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                direction: 'inherit',
+                textAlign: isRTL ? 'right' : 'left',
+                fontSize: '1.25rem',
+                letterSpacing: '0.5px',
+                textShadow: muiTheme.palette.mode === 'dark' 
+                  ? '0 2px 4px rgba(0,0,0,0.3)' 
+                  : '0 1px 2px rgba(0,0,0,0.1)',
+              }}
+            >
+              {t('app.name')}
+            </Typography>
+          </Slide>
+        </Box>
+        
+        {/* Enhanced Close drawer button */}
+        <IconButton 
+          onClick={toggleDrawer}
+          size="small"
+          sx={{ 
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            flexShrink: 0,
+            borderRadius: '50%',
+            padding: '6px',
+            backgroundColor: alpha(muiTheme.palette.action.hover, 0.1),
+            '&:hover': {
+              backgroundColor: alpha(muiTheme.palette.primary.main, 0.1),
+              transform: 'rotate(180deg) scale(1.1)',
+              boxShadow: `0 4px 12px ${alpha(muiTheme.palette.primary.main, 0.3)}`,
+            },
+            '&:active': {
+              transform: 'rotate(180deg) scale(0.95)',
+            },
+          }}
+        >
+          {isRTL ? (
+            open ? <ChevronRightIcon fontSize="small" /> : <ChevronLeftIcon fontSize="small" />
+          ) : (
+            open ? <ChevronLeftIcon fontSize="small" /> : <ChevronRightIcon fontSize="small" />
+          )}
+        </IconButton>
+      </Toolbar>
+      
+      <Divider sx={{ 
+        backgroundColor: alpha(muiTheme.palette.divider, 0.08),
+        height: '1px',
+      }} />
+      
+      {/* Sidebar navigation */}
+      <Fade in timeout={800}>
+        <Box>
+          <SidebarNav open={open || isMobile} />
+        </Box>
+      </Fade>
+    </>
+  );
   
   return (
     <Box sx={{ 
@@ -310,145 +431,49 @@ const DashboardLayout = ({ children }) => {
         </Toolbar>
       </AppBar>
       
-      {/* Enhanced Mobile Overlay */}
-      {isMobile && open && (
-        <Fade in timeout={300}>
-          <MobileOverlay onClick={toggleDrawer} />
-        </Fade>
-      )}
-      
       {/* Enhanced Sidebar */}
-      <Drawer 
-        variant={isMobile ? 'temporary' : 'permanent'}
-        open={open} 
-        isRTL={isRTL}
-        anchor={isRTL ? 'right' : 'left'}
-        onClose={isMobile ? toggleDrawer : undefined}
-        ModalProps={{
-          keepMounted: true, // Better mobile performance
-        }}
-        sx={{
-          height: '100%',
-          '& .MuiDrawer-paper': { 
-            position: isMobile ? 'fixed' : 'relative',
-            ...(isMobile && {
-              zIndex: muiTheme.zIndex.drawer,
-            }),
-          },
-        }}
-      >
-        <Toolbar
+      {isMobile ? (
+        // Use base MuiDrawer for mobile to avoid styled component conflicts
+        <MuiDrawer
+          variant="temporary"
+          open={open}
+          anchor={isRTL ? 'right' : 'left'}
+          onClose={toggleDrawer}
+          ModalProps={{
+            keepMounted: true,
+            disableScrollLock: false,
+          }}
           sx={{
-            display: 'flex',
-            alignItems: 'center',
-            px: 2,
-            minHeight: '64px !important',
-            borderBottom: `1px solid ${alpha(muiTheme.palette.divider, 0.12)}`,
-            direction: isRTL ? 'rtl' : 'ltr',
-            justifyContent: 'space-between',
-            // Enhanced background
-            background: muiTheme.palette.mode === 'dark'
-              ? `linear-gradient(135deg, ${alpha(muiTheme.palette.primary.dark, 0.1)}, ${alpha(muiTheme.palette.background.paper, 0.95)})`
-              : `linear-gradient(135deg, ${alpha(muiTheme.palette.primary.light, 0.05)}, ${muiTheme.palette.background.paper})`,
+            zIndex: muiTheme.zIndex.modal,
+            '& .MuiDrawer-paper': {
+              width: drawerWidth,
+              boxSizing: 'border-box',
+              background: muiTheme.palette.mode === 'dark'
+                ? `linear-gradient(180deg, ${muiTheme.palette.background.paper} 0%, ${alpha(muiTheme.palette.background.paper, 0.98)} 100%)`
+                : `linear-gradient(180deg, ${muiTheme.palette.background.paper} 0%, ${alpha(muiTheme.palette.background.default, 0.8)} 100%)`,
+              backdropFilter: 'blur(20px)',
+              boxShadow: muiTheme.palette.mode === 'dark' 
+                ? '8px 0 32px rgba(0, 0, 0, 0.4), 4px 0 16px rgba(0, 0, 0, 0.2)'
+                : '4px 0 24px rgba(0, 0, 0, 0.08), 2px 0 8px rgba(0, 0, 0, 0.04)',
+            },
+            '& .MuiBackdrop-root': {
+              backgroundColor: alpha(muiTheme.palette.common.black, 0.5),
+              backdropFilter: 'blur(4px)',
+            },
           }}
         >
-          {/* Logo/Brand section */}
-          <Box sx={{ 
-            display: 'flex', 
-            alignItems: 'center',
-            flex: 1,
-            direction: 'inherit',
-          }}>
-            <Fade in={true} timeout={1000}>
-              <Box
-                component="img"
-                src="/assets/logo/logo.svg"
-                alt="Sukna Logo"
-                sx={{
-                  height: 40,
-                  width: 'auto',
-                  marginRight: isRTL ? 0 : 2,
-                  marginLeft: isRTL ? 2 : 0,
-                  transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-                  filter: muiTheme.palette.mode === 'dark' 
-                    ? 'drop-shadow(0 2px 8px rgba(0,0,0,0.3))' 
-                    : 'drop-shadow(0 1px 4px rgba(0,0,0,0.1))',
-                  ...(open && {
-                    transform: 'scale(1.05)',
-                  }),
-                  '&:hover': {
-                    transform: 'scale(1.1) rotate(5deg)',
-                  },
-                }}
-              />
-            </Fade>
-            <Slide direction={isRTL ? "left" : "right"} in={open} timeout={600}>
-              <Typography 
-                variant="h6" 
-                sx={{ 
-                  fontWeight: 'bold', 
-                  display: open ? 'block' : 'none',
-                  whiteSpace: 'nowrap',
-                  opacity: open ? 1 : 0,
-                  transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-                  background: `linear-gradient(135deg, ${muiTheme.palette.primary.main}, ${muiTheme.palette.secondary.main}, ${muiTheme.palette.primary.light})`,
-                  backgroundClip: 'text',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  direction: 'inherit',
-                  textAlign: isRTL ? 'right' : 'left',
-                  fontSize: '1.25rem',
-                  letterSpacing: '0.5px',
-                  textShadow: muiTheme.palette.mode === 'dark' 
-                    ? '0 2px 4px rgba(0,0,0,0.3)' 
-                    : '0 1px 2px rgba(0,0,0,0.1)',
-                }}
-              >
-                {t('app.name')}
-              </Typography>
-            </Slide>
-          </Box>
-          
-          {/* Enhanced Close drawer button */}
-          <IconButton 
-            onClick={toggleDrawer}
-            size="small"
-            sx={{ 
-              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-              flexShrink: 0,
-              borderRadius: '50%',
-              padding: '6px',
-              backgroundColor: alpha(muiTheme.palette.action.hover, 0.1),
-              '&:hover': {
-                backgroundColor: alpha(muiTheme.palette.primary.main, 0.1),
-                transform: 'rotate(180deg) scale(1.1)',
-                boxShadow: `0 4px 12px ${alpha(muiTheme.palette.primary.main, 0.3)}`,
-              },
-              '&:active': {
-                transform: 'rotate(180deg) scale(0.95)',
-              },
-            }}
-          >
-            {isRTL ? (
-              open ? <ChevronRightIcon fontSize="small" /> : <ChevronLeftIcon fontSize="small" />
-            ) : (
-              open ? <ChevronLeftIcon fontSize="small" /> : <ChevronRightIcon fontSize="small" />
-            )}
-          </IconButton>
-        </Toolbar>
-        
-        <Divider sx={{ 
-          backgroundColor: alpha(muiTheme.palette.divider, 0.08),
-          height: '1px',
-        }} />
-        
-        {/* Sidebar navigation */}
-        <Fade in timeout={800}>
-          <Box>
-            <SidebarNav open={open} />
-          </Box>
-        </Fade>
-      </Drawer>
+          {renderDrawerContent()}
+        </MuiDrawer>
+      ) : (
+        <Drawer 
+          variant="permanent"
+          open={open} 
+          isRTL={isRTL}
+          isMobile={false}
+        >
+          {renderDrawerContent()}
+        </Drawer>
+      )}
       
       {/* Enhanced Main content */}
       <MainContent isRTL={isRTL} open={open}>

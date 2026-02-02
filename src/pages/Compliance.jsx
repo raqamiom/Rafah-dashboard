@@ -152,21 +152,39 @@ const Compliance = () => {
     rejected: { color: 'error', bg: alpha(theme.palette.error.main, 0.1) },
   };
 
-  // Fetch all compliance records
+  // Fetch all compliance records - fetches all using pagination
   const fetchRecords = async () => {
     try {
       setLoading(true);
       setLastError(null);
 
-      const response = await databases.listDocuments(
-        databaseId,
-        collections.compliance,
-        [Query.orderDesc('$createdAt')],
-        100
-      );
+      // Fetch all records by paginating through results
+      const allRecords = [];
+      let offset = 0;
+      const limit = 100; // Maximum allowed per request
+      let hasMore = true;
+
+      while (hasMore) {
+        const response = await databases.listDocuments(
+          databaseId,
+          collections.compliance,
+          [Query.orderDesc('$createdAt')],
+          limit,
+          offset
+        );
+
+        allRecords.push(...response.documents);
+
+        // Check if there are more documents to fetch
+        if (response.documents.length < limit) {
+          hasMore = false;
+        } else {
+          offset += limit;
+        }
+      }
 
       // Normalize image URLs
-      const normalizedRecords = response.documents.map(record => ({
+      const normalizedRecords = allRecords.map(record => ({
         ...record,
         imageUrls: normalizeImageUrls(record.imageUrls),
       }));
@@ -182,35 +200,50 @@ const Compliance = () => {
     }
   };
 
-  // Fetch users (students and staff)
+  // Fetch users (students and staff) - fetches all using pagination
   const fetchUsers = async () => {
     try {
       setLoadingUsers(true);
 
+      // Helper function to fetch all documents with pagination
+      const fetchAllUsers = async (roleFilter) => {
+        const allUsers = [];
+        let offset = 0;
+        const limit = 100;
+        let hasMore = true;
+
+        while (hasMore) {
+          const response = await databases.listDocuments(
+            databaseId,
+            collections.users,
+            roleFilter,
+            limit,
+            offset,
+            '$createdAt',
+            'DESC'
+          );
+
+          allUsers.push(...response.documents);
+
+          if (response.documents.length < limit) {
+            hasMore = false;
+          } else {
+            offset += limit;
+          }
+        }
+        return allUsers;
+      };
+
       // Fetch students
-      const studentsResponse = await databases.listDocuments(
-        databaseId,
-        collections.users,
-        [
-          Query.equal('role', ['student']),
-          Query.limit(100),
-          Query.orderDesc('$createdAt'),
-        ]
-      );
+      const students = await fetchAllUsers([Query.equal('role', ['student'])]);
 
       // Fetch staff members
-      const staffResponse = await databases.listDocuments(
-        databaseId,
-        collections.users,
-        [
-          Query.equal('role', ['admin', 'staff', 'service', 'restaurant']),
-          Query.limit(100),
-          Query.orderDesc('$createdAt'),
-        ]
-      );
+      const staff = await fetchAllUsers([
+        Query.equal('role', ['admin', 'staff', 'service', 'restaurant'])
+      ]);
 
-      setStudents(studentsResponse.documents);
-      setStaffMembers(staffResponse.documents);
+      setStudents(students);
+      setStaffMembers(staff);
     } catch (error) {
       console.error('Error fetching users:', error);
       showError(t('compliance.fetchUsersError', 'Error fetching users'));

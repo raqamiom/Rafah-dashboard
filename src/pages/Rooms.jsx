@@ -494,20 +494,36 @@ const Rooms = () => {
         filters.push(Query.search('roomNumber', searchQuery));
       }
       
-      // Fetch rooms using actual collection ID
-      const response = await databases.listDocuments(
-        databaseId,
-        '68249cb00025da201b9d', // rooms collection ID
-        filters,
-        1000, // Get all rooms first, then we'll filter and paginate client-side
-        0,
-        'roomNumber',
-        'ASC'
-      );
+      // Fetch all rooms by paginating through results
+      const allRooms = [];
+      let offset = 0;
+      const limit = 100; // Maximum allowed per request
+      let hasMore = true;
+
+      while (hasMore) {
+        const response = await databases.listDocuments(
+          databaseId,
+          '68249cb00025da201b9d', // rooms collection ID
+          filters,
+          limit,
+          offset,
+          'roomNumber',
+          'ASC'
+        );
+
+        allRooms.push(...response.documents);
+
+        // Check if there are more documents to fetch
+        if (response.documents.length < limit) {
+          hasMore = false;
+        } else {
+          offset += limit;
+        }
+      }
       
       // Calculate dynamic status and occupancy for each room
       const roomsWithStatus = await Promise.all(
-        response.documents.map(async (room) => {
+        allRooms.map(async (room) => {
           const statusData = await calculateRoomStatus(room);
           return {
             ...room,

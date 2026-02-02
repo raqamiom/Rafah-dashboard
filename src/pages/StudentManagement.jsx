@@ -55,6 +55,7 @@ import {
   PersonAdd as PersonAddIcon,
 } from "@mui/icons-material";
 import { useTheme, alpha } from "@mui/material/styles";
+import { Query } from "appwrite";
 import { useLanguage } from "../contexts/LanguageContext";
 import { useNotification } from "../contexts/NotificationContext";
 import { useAppWrite } from "../contexts/AppWriteContext";
@@ -93,7 +94,7 @@ const StudentManagement = () => {
 
   const [formErrors, setFormErrors] = useState({});
 
-  // Load students
+  // Load students - fetches all students using pagination
   const loadStudents = useCallback(async () => {
     try {
       setLoading(true);
@@ -105,26 +106,35 @@ const StudentManagement = () => {
         return;
       }
 
-      // Try different query formats based on Appwrite version
-      let response;
-      try {
-        // Try newer query format first
-        response = await databases.listDocuments(
+      // Fetch all students by paginating through results
+      // Appwrite has a maximum limit per request (usually 100), so we need to paginate
+      const allStudents = [];
+      let offset = 0;
+      const limit = 100; // Maximum allowed per request
+      let hasMore = true;
+
+      while (hasMore) {
+        const response = await databases.listDocuments(
           databaseId,
           collections.users,
-          [] // Get all documents first, then filter client-side if needed
+          [Query.equal("role", "student")], // Filter for students on server side
+          limit, // Fetch 100 at a time
+          offset, // Start from current offset
+          "$createdAt", // Order by creation date
+          "DESC" // Most recent first
         );
-      } catch (error) {
-        console.error("Query error:", error);
-        // Fallback: try with explicit queries parameter
-        response = await databases.listDocuments(databaseId, collections.users);
+
+        allStudents.push(...response.documents);
+
+        // Check if there are more documents to fetch
+        if (response.documents.length < limit) {
+          hasMore = false; // No more documents to fetch
+        } else {
+          offset += limit; // Move to next batch
+        }
       }
 
-      // Filter for students on client-side to avoid server query issues
-      const studentDocuments = response.documents.filter(
-        (doc) => doc.role === "student"
-      );
-      setStudents(studentDocuments);
+      setStudents(allStudents);
     } catch (error) {
       console.error("Error loading students:", error);
       showNotification(`Failed to load students: ${error.message}`, "error");
