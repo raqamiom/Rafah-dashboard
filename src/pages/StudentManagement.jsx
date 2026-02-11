@@ -114,15 +114,22 @@ const StudentManagement = () => {
       let hasMore = true;
 
       while (hasMore) {
+        // Build queries array with filter and ordering
+        // Note: Appwrite SDK v10+ uses queries array for all parameters
+        const queries = [
+          Query.equal("role", "student"), // Filter for students on server side
+          Query.orderDesc("$createdAt"), // Order by creation date, most recent first
+          Query.limit(limit), // Explicitly set limit to 100
+          Query.offset(offset), // Set offset for pagination
+        ];
+
         const response = await databases.listDocuments(
           databaseId,
           collections.users,
-          [Query.equal("role", "student")], // Filter for students on server side
-          limit, // Fetch 100 at a time
-          offset, // Start from current offset
-          "$createdAt", // Order by creation date
-          "DESC" // Most recent first
+          queries
         );
+
+        console.log(`Fetched ${response.documents.length} students (offset: ${offset}, total so far: ${allStudents.length + response.documents.length})`);
 
         allStudents.push(...response.documents);
 
